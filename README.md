@@ -20,10 +20,11 @@ Agregar a cron la linea:
 `* * * * * /usr/local/sbin/email2sms.py`
 
 Los correos deben llegar a la casilla que se configuro, con el siguiente formato:
-Asunto: números de celular separados por coma.
+
+* **Asunto:** números de celular separados por coma.
 Los números pueden escribirse con 54, 011, 11, 15 o sus combinaciones.
 
-Cuerpo: mensaje, se le quitaran los símbolos no ASCII, se quitan los saltos de linea
+* **Cuerpo:** mensaje, se le quitaran los símbolos no ASCII, se quitan los saltos de linea
 se truncara en 160 caracteres.
 
 ## Nota ##
