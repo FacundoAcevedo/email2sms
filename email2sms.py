@@ -6,6 +6,8 @@
 #
 # Distributed under terms of the GPLv3+ license.
 
+"""Descarga los correos electronicos y los envia por sms usando un modem 3G"""
+
 
 import imaplib
 import email
@@ -21,13 +23,23 @@ import os.path
 import sys
 
 class Email2sms(object):
+    """Descarga los correos electronicos y los envia por sms usando
+    un modem 3G"""
     def __init__(self):
+
+        self.usuario = ""
+        self.clave = ""
+        self.ip = ""
+        self.carpeta = ""
+        self.carpetaSmsEnviado = ""
+        self.carpetaSmsNoEnviado = ""
+        self.rutaUsb = ""
+        self.rutaLog = ""
 
         self.get_config()
         self.setupLoggin()
 
         self.sms = Sms(self.rutaUsb)
-
 
     def get_config(self):
         """Busca y carga su configuracion"""
@@ -50,8 +62,10 @@ class Email2sms(object):
         self.clave = config.get("Email2sms", "clave_correo")
         self.ip = config.get("Email2sms", "dominio_correo")
         self.carpeta = config.get("Email2sms", "inbox")
-        self.carpetaSmsEnviado = config.get("Email2sms", "carpeta_sms_enviado_OK")
-        self.carpetaSmsNoEnviado = config.get("Email2sms", "carpeta_sms_enviado_FAIL")
+        self.carpetaSmsEnviado = config.get("Email2sms",
+            "carpeta_sms_enviado_OK")
+        self.carpetaSmsNoEnviado = config.get("Email2sms",
+            "carpeta_sms_enviado_FAIL")
         self.rutaUsb = config.get("Email2sms", "ruta_usb")
         self.rutaLog = config.get("Email2sms", "archivo_log")
 
@@ -66,7 +80,8 @@ class Email2sms(object):
 
         # Add the log message handler to the logger
         #NOTA: backupCount es la cantidad de logs maxima que se tendra antes de
-        #empezar a borrar el ultimo log y pisarlo con el posterior(en fecha no en numero
+        #empezar a borrar el ultimo log y pisarlo con el posterior
+        #(en fecha no en numero)
         handler = logging.handlers.RotatingFileHandler(
               "/tmp/email2sms.log", maxBytes=log_max_tam, backupCount=3)
               #self.rutaLog, maxBytes=log_max_tam, backupCount=3)
@@ -86,17 +101,17 @@ class Email2sms(object):
         #Copio el mail a la nueva carpeta
         self.mail.uid("copy", uid, carpeta)
         #Marco el viejo correo como Borrado
-        self.mail.uid("store",uid,'+FLAGS','(\\Deleted)')
+        self.mail.uid("store", uid, '+FLAGS', '(\\Deleted)')
         #Ejecuto el borrado
         self.mail.expunge()
 
 
     def validarNumeroCelular(self, numero):
-        numero =  str(numero)
+        numero = str(numero)
         tam = len(numero)
 
         #Sin 15 ni 011, con 15, con 011, con 01115 con 1115
-        tamCorrecto = tam  in [8, 10 , 11 , 12, 13]
+        tamCorrecto = tam  in [8, 10, 11, 12, 13]
 
         if numero.isdigit() and tamCorrecto:
             return True
@@ -112,8 +127,7 @@ class Email2sms(object):
     def procesarCorreos(self):
         """"Busca los mails formateados para mandar sms, luego de enviar el sms
         los archiva en otra carpeta"""
-        resultados = []
-        if not self.conectado:
+        if not self.conectado():
             return
 
         for uid, correo in self.emails_raw:
@@ -136,7 +150,7 @@ class Email2sms(object):
 
 
             estado = self.enviarSms(destinatarios, cuerpo)
-            print "Estado: ",estado
+            print "Estado: ", estado
 
             #promedio los resultados
             if estado.count(False) > 0:
@@ -150,8 +164,8 @@ class Email2sms(object):
         devuelve una lista con los numeros"""
 
         #Quito los espacios/+ que haya
-        numeros = numeros.replace(" ","")
-        numeros = numeros.replace("+","")
+        numeros = numeros.replace(" ", "")
+        numeros = numeros.replace("+", "")
 
         #Separo los numeros, obtengo la lista
         numeros = numeros.split(",")
@@ -161,7 +175,7 @@ class Email2sms(object):
 
     def formatear(self, texto):
         """Quita los tags de html, quita acentos y limita a 160 caracteres"""
-        t_sin_saltos = texto.replace('\n'," ")
+        t_sin_saltos = texto.replace('\n', " ")
         t_sin_tabs = t_sin_saltos.replace('\r', "")
 
         #Limpio la cadena de la manera mas HARDCORE que se me ocurre, solo ascii
@@ -176,7 +190,7 @@ class Email2sms(object):
     def obtenerCorreos(self):
         "Obtiene los correos nuevos ( no vistos )"
 
-        if not self.conectado:
+        if not self.conectado():
             return
 
         self.emails_raw = [] #lista de correos en crudo
@@ -186,7 +200,8 @@ class Email2sms(object):
         ids = data[0].split() #data es una lista de ids
         #Descargo los correos
         for unId in ids:
-            result, data = self.mail.uid('fetch', unId, "(RFC822)") # fetch the email body (RFC822) for the given ID
+            # fetch the email body (RFC822) for the given ID
+            result, data = self.mail.uid('fetch', unId, "(RFC822)")
             if result == "OK":
                 self.emails_raw.append([unId, data[0][1]])
         if len(self.emails_raw) > 0:
